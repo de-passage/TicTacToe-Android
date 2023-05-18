@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">TicTacToe</string>
+    <string name="go_button">GO !!!</string>
+    <string name="slider_label">Grid size: %s</string>
 </resources>
