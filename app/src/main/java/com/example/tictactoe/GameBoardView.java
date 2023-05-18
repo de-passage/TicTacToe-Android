@@ -6,11 +6,14 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.Pair;
 import android.view.MotionEvent;
 import android.view.View;
 
 public class GameBoardView extends View {
+
     final int player1 = 1;
     final int player2 = 2;
     Paint gridPaint;
@@ -19,7 +22,10 @@ public class GameBoardView extends View {
     int[][] grid = new int[gridSize][gridSize];
     private Paint player1Paint;
     private Paint player2Paint;
-
+    private Paint victoryPaint;
+    private Paint victoryTextStrokePaint;
+    private Paint victoryTextFillPaint;
+    private Pair<Coordinates, Coordinates> victoryCoordinates = null;
 
     public GameBoardView(Context context) {
         super(context);
@@ -44,13 +50,31 @@ public class GameBoardView extends View {
 
         player1Paint = new Paint();
         player1Paint.setColor(Color.RED);
-        player1Paint.setStrokeWidth(4);
+        player1Paint.setStrokeWidth(8);
         player1Paint.setStyle(Paint.Style.STROKE);
 
         player2Paint = new Paint();
         player2Paint.setColor(Color.BLUE);
-        player2Paint.setStrokeWidth(4);
+        player2Paint.setStrokeWidth(8);
         player2Paint.setStyle(Paint.Style.STROKE);
+
+        victoryPaint = new Paint();
+        victoryPaint.setColor(Color.GREEN);
+        victoryPaint.setStrokeWidth(16);
+
+        victoryTextStrokePaint = new Paint();
+        victoryTextStrokePaint.setColor(Color.WHITE);
+        victoryTextStrokePaint.setTextSize(140);
+        victoryTextStrokePaint.setStyle(Paint.Style.STROKE);
+        victoryTextStrokePaint.setTypeface(Typeface.DEFAULT_BOLD);
+        victoryTextStrokePaint.setAntiAlias(true);
+
+        victoryTextFillPaint = new Paint();
+        victoryTextFillPaint.setColor(Color.DKGRAY);
+        victoryTextFillPaint.setTextSize(128);
+        victoryTextFillPaint.setStyle(Paint.Style.FILL);
+        victoryTextFillPaint.setTypeface(Typeface.DEFAULT_BOLD);
+        victoryTextStrokePaint.setAntiAlias(true);
     }
 
     @Override
@@ -73,13 +97,31 @@ public class GameBoardView extends View {
 
                 if (grid[i][j] == player1) {
                     // Draw an X
-                    canvas.drawLine(i * cellWidth, j * cellHeight, (i + 1) * cellWidth, (j + 1) * cellHeight, player1Paint);
-                    canvas.drawLine((i + 1) * cellWidth, j * cellHeight, i * cellWidth, (j + 1) * cellHeight, player1Paint);
+                    canvas.drawLine(i * cellWidth, j * cellHeight, (i + 1) * cellWidth,
+                                    (j + 1) * cellHeight, player1Paint);
+                    canvas.drawLine((i + 1) * cellWidth, j * cellHeight, i * cellWidth,
+                                    (j + 1) * cellHeight, player1Paint);
                 } else if (grid[i][j] == player2) {
                     // Draw an O
-                    canvas.drawCircle(i * cellWidth + cellWidth / 2.f, j * cellHeight + cellHeight / 2.f, cellWidth / 2.f, player2Paint);
+                    canvas.drawCircle(i * cellWidth + cellWidth / 2.f,
+                                      j * cellHeight + cellHeight / 2.f, cellWidth / 2.f,
+                                      player2Paint);
                 }
             }
+        }
+
+        if (victoryCoordinates != null) {
+            Coordinates start = victoryCoordinates.first;
+            Coordinates end = victoryCoordinates.second;
+            canvas.drawLine(start.x * cellWidth + cellWidth / 2.f,
+                            start.y * cellHeight + cellHeight / 2.f,
+                            end.x * cellWidth + cellWidth / 2.f,
+                            end.y * cellHeight + cellHeight / 2.f, victoryPaint);
+
+            canvas.drawText("Player " + this.currentPlayer + " wins!", 0, getHeight() * 0.25f,
+                            victoryTextStrokePaint);
+            canvas.drawText("Player " + this.currentPlayer + " wins!", 6, getHeight() * 0.25f + 6,
+                            victoryTextFillPaint);
         }
     }
 
@@ -104,11 +146,11 @@ public class GameBoardView extends View {
         return super.performClick();
     }
 
-
     public void setGridSize(int gridSize) {
         this.gridSize = gridSize;
         this.grid = new int[gridSize][gridSize];
         currentPlayer = player1;
+        victoryCoordinates = null;
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
                 grid[i][j] = 0;
@@ -118,19 +160,107 @@ public class GameBoardView extends View {
     }
 
     private void play(int x, int y) {
-        if (grid[x][y] == 0) {
+        if (this.victoryCoordinates != null && grid[x][y] == 0) {
             grid[x][y] = currentPlayer;
-            checkForWinner(x, y);
+            this.victoryCoordinates = checkForWinner(x, y);
+            invalidate();
             if (currentPlayer == player1) {
                 currentPlayer = player2;
             } else {
                 currentPlayer = player1;
             }
-            invalidate();
         }
     }
 
-    private void checkForWinner(int x, int y) {
+    private Pair<Coordinates, Coordinates> checkForWinner(int x, int y) {
         final int countToWin = min(gridSize, 5);
+
+        int currentX = x;
+        int currentY = y;
+        int currentCount = 1;
+        while (currentX > 0 && grid[currentX - 1][currentY] == currentPlayer) {
+            currentX--;
+            currentCount++;
+        }
+        int startX = currentX;
+        int startY = currentY;
+        currentX = x;
+        while (currentX < gridSize - 1 && grid[currentX + 1][currentY] == currentPlayer) {
+            currentX++;
+            currentCount++;
+        }
+        if (currentCount >= countToWin) {
+            return new Pair<>(new Coordinates(startX, startY), new Coordinates(currentX, currentY));
+        }
+
+        currentX = x;
+        currentCount = 1;
+        while (currentY > 0 && grid[currentX][currentY - 1] == currentPlayer) {
+            currentY--;
+            currentCount++;
+        }
+        startX = currentX;
+        startY = currentY;
+        currentY = y;
+        while (currentY < gridSize - 1 && grid[currentX][currentY + 1] == currentPlayer) {
+            currentY++;
+            currentCount++;
+        }
+        if (currentCount >= countToWin) {
+            return new Pair<>(new Coordinates(startX, startY), new Coordinates(currentX, currentY));
+        }
+
+        currentY = y;
+        currentCount = 1;
+        while (currentX > 0 && currentY > 0 && grid[currentX - 1][currentY - 1] == currentPlayer) {
+            currentX--;
+            currentY--;
+            currentCount++;
+        }
+        startX = currentX;
+        startY = currentY;
+        currentX = x;
+        currentY = y;
+        while (currentX < gridSize - 1 && currentY < gridSize - 1 && grid[currentX + 1][currentY + 1] == currentPlayer) {
+            currentX++;
+            currentY++;
+            currentCount++;
+        }
+        if (currentCount >= countToWin) {
+            return new Pair<>(new Coordinates(startX, startY), new Coordinates(currentX, currentY));
+        }
+
+        currentX = x;
+        currentY = y;
+        currentCount = 1;
+        while (currentX > 0 && currentY < gridSize - 1 && grid[currentX - 1][currentY + 1] == currentPlayer) {
+            currentX--;
+            currentY++;
+            currentCount++;
+        }
+        startX = currentX;
+        startY = currentY;
+        currentX = x;
+        currentY = y;
+        while (currentX < gridSize - 1 && currentY > 0 && grid[currentX + 1][currentY - 1] == currentPlayer) {
+            currentX++;
+            currentY--;
+            currentCount++;
+        }
+        if (currentCount >= countToWin) {
+            return new Pair<>(new Coordinates(startX, startY), new Coordinates(currentX, currentY));
+        }
+
+        return null;
+    }
+
+    private static class Coordinates {
+        int x;
+        int y;
+
+        Coordinates(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
 }
